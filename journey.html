@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+        <title>Customer Journey Embed</title>
+    </head>
+    <body>
+        <ul id="data"></ul>
+        <p id="status"></p>
+
+        <!-- This page is loaded in an iframe by the Bold360 Agent Workspace when an agent accepts an interaction. -->
+        <!-- The page extracts the customerId passed by the parent application and -->
+        <!-- uses it to redirect to the customer journey visualisation for that customerId. -->
+        <script type="text/javascript">
+            const authStorageKey = 'bold_agent_genesys_cloud_auth';
+            const redirectStateStorageKey = 'bold_agent_redirect_state';
+            const region = getQueryVariable('region');
+            const environment = getQueryVariable('environment'); // likely to be undefined most of the time
+
+            function redirectToLoginPage() {
+                const redirectUri = getQueryVariable('redirectUri');
+                const domain = genesysCloudDomainForRegion(region, environment);
+                const clientId = getQueryVariable('clientId');
+
+                const loginUrl = `https://login.${domain}/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+                saveRedirectState();
+
+                window.location.href = loginUrl;
+            }
+
+            function getAuthData() {
+                let item;
+                try {
+                    const itemStr = localStorage.getItem(authStorageKey) || '{}';
+                    item = JSON.parse(itemStr);
+                } catch (err) {
+                    console.error('Could not deserialise auth data', err);
+                    return {};
+                }
+
+                return item;
+            }
+
+            function setAuthData(authData) {
+                return localStorage.setItem(authStorageKey, JSON.stringify(authData));
+            }
+
+            function getSavedRedirectState() {
+                return localStorage.getItem(redirectStateStorageKey);
+            }
+
+            function saveRedirectState() {
+                localStorage.setItem(redirectStateStorageKey, window.location.search);
+            }
+
+            function clearRedirectState() {
+                localStorage.removeItem(redirectStateStorageKey);
+            }
+
+            function exec() {
+                const hashParams = new URLSearchParams(window.location.hash.slice(1));
+                let authData = parseAuthParams(hashParams);
+
+                if (isAuthValid(authData)) {
+                    setAuthData(authData);
+                    window.location.hash = '';
+                } else {
+                    authData = getAuthData();
+
+                    if (!isAuthValid(authData)) {
+                        console.log('redirecting to login page');
+                        redirectToLoginPage();
+                        return;
+                    }
+                }
+
+                let queryParamsStr = window.location.search;
+                const savedQueryParams = getSavedRedirectState();
+
+                if (savedQueryParams) {
+                    queryParamsStr = savedQueryParams;
+                    clearRedirectState();
+                }
+
+                const queryParams = new URLSearchParams(queryParamsStr);
+
+                // customerId is passed in the VisitInfo custom parameter from Bold360
+                const customerId = queryParams.get('VisitInfo');
+                if (!customerId) {
+                    $('#status').text('No customerId found..');
+                    return;
+                }
+
+                redirectToGadget(customerId, authData.accessToken, queryParams.get('region'));
+            }
+
+            function isAuthValid(authData) {
+                return authData && authData.accessToken && authData.expirationTime && authData.expirationTime > Date.now();
+            }
+
+            function parseAuthParams(params) {
+                const auth = {};
+
+                if (params.has('access_token')) {
+                    auth.accessToken = params.get('access_token');
+
+                    const expiresIn = params.get('expires_in');
+
+                    if (!isNaN(expiresIn * 1)) {
+                        auth.expirationTime = Date.now() + expiresIn * 1000;
+                    } else {
+                        // default of 1 hour expiry
+                        auth.expirationTime = Date.now() + 3600 * 1000;
+                    }
+                } else {
+                    const authToken = getQueryVariable('auth');
+                    if (authToken) {
+                        auth.accessToken = authToken;
+                        // review if this works
+                        auth.expirationTime = Date.now() + 3600 * 1000;
+                    }
+                }
+
+                return auth;
+            }
+
+            function getQueryVariable(variable) {
+                var query = window.location.href.split('?');
+                var vars = query[1] ? query[1].split('&') : [];
+                for (var i = 0; i < vars.length; i++) {
+                    var pair = vars[i].split('=');
+                    if (decodeURIComponent(pair[0]) == variable) {
+                        return decodeURIComponent(pair[1]);
+                    }
+                }
+            }
+
+            function genesysCloudDomainForRegion(region, env) {
+                if (env && env === 'dev') {
+                    return 'inindca.com';
+                } else if (env && env === 'test') {
+                    return 'inintca.com';
+                }
+
+                switch (region) {
+                    case 'euw1':
+                        return 'mypurecloud.ie';
+                        break;
+                    case 'euc1':
+                        return 'mypurecloud.de';
+                        break;
+                    case 'apne1':
+                        return 'mypurecloud.jp';
+                        break;
+                    case 'apse2':
+                        return 'mypurecloud.com.au';
+                        break;
+                    case 'aps1':
+                        return 'aps1.pure.cloud';
+                        break;
+                    case 'euw2':
+                        return 'euw2.pure.cloud';
+                        break;
+                    case 'cac1':
+                        return 'cac1.pure.cloud';
+                        break;
+                    case 'usw2':
+                        return 'usw2.pure.cloud';
+                        break;
+                    case 'apne2':
+                        return 'apne2.pure.cloud';
+                        break;
+                    default:
+                        return 'mypurecloud.com';
+                }
+            }
+
+            function redirectToGadget(customerId, accessToken, regionDefined) {
+                const domain = genesysCloudDomainForRegion(regionDefined, environment);
+                let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/purecloud-launcher/?gadgetId=holisticCustomerJourney&customerId=${customerId}&customerIdType=cookie`;
+
+                if (accessToken) {
+                    gadgetUrl += `&accessToken=${accessToken}`;
+                }
+
+                window.location.href = gadgetUrl;
+            }
+
+            exec();
+        </script>
+    </body>
+</html>
