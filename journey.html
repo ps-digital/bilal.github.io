@@ -100,7 +100,7 @@
             }
 
             function isAuthValid(authData) {
-                return authData && authData.accessToken && authData.expirationTime && authData.expirationTime > Date.now();
+                return authData && authData.accessToken && authData.accessToken.indexOf(':') == -1 && authData.expirationTime && authData.expirationTime > Date.now();
             }
 
             function parseAuthParams(params) {
@@ -182,7 +182,9 @@
 
             function redirectToGadget(customerId, accessToken, regionDefined) {
                 const domain = genesysCloudDomainForRegion(regionDefined, environment);
-                let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/purecloud-launcher/?gadgetId=holisticCustomerJourney&customerId=${customerId}&customerIdType=cookie`;
+                // commented out URL does not work
+                //let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/purecloud-launcher/?gadgetId=holisticCustomerJourney&customerId=${customerId}&customerIdType=cookie`;
+                let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/holistic-customer-journey/index.html?customerId=${customerId}&customerIdType=cookie`;
 
                 if (accessToken) {
                     gadgetUrl += `&accessToken=${accessToken}`;
