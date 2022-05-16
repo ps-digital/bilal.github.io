@@ -26,7 +26,9 @@
                 const domain = genesysCloudDomainForRegion(region, environment);
                 const clientId = getQueryVariable('clientId');
 
-                const loginUrl = `https://login.${domain}/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}`;
+                const loginUrl = `https://login.${domain}/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(
+                    redirectUri
+                )}&target=a518ccc2-06e1-42a5-b5d9-8641280d8860`;
 
                 saveRedirectState();
 
@@ -183,8 +185,8 @@
             function redirectToGadget(customerId, accessToken, regionDefined) {
                 const domain = genesysCloudDomainForRegion(regionDefined, environment);
                 // commented out URL does not work
-                //let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/purecloud-launcher/?gadgetId=holisticCustomerJourney&customerId=${customerId}&customerIdType=cookie`;
-                let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/holistic-customer-journey/index.html?customerId=${customerId}&customerIdType=cookie`;
+                let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/purecloud-launcher/?gadgetId=holisticCustomerJourney&customerId=${customerId}&customerIdType=cookie`;
+                //let gadgetUrl = `https://apps.${domain}/journey/gadgets/v0/integration/holistic-customer-journey/index.html?customerId=${customerId}&customerIdType=cookie`;
 
                 if (accessToken) {
                     gadgetUrl += `&accessToken=${accessToken}`;
